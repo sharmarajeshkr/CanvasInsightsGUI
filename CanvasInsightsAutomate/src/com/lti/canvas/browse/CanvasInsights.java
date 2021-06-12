@@ -18,6 +18,9 @@ import javax.swing.JLayeredPane;
 import java.awt.CardLayout;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+
+import org.apache.commons.io.FileUtils;
+
 import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 import javax.swing.JCheckBox;
@@ -232,9 +235,9 @@ public class CanvasInsights {
 		ssmseparatordeploy.setBounds(30, 228, 545, 2);
 		fileFolderMovementPanel.add(ssmseparatordeploy);
 
-		JButton btnssmProceed = new JButton("Proceed");
-		btnssmProceed.setBounds(243, 254, 89, 23);
-		fileFolderMovementPanel.add(btnssmProceed);
+		JButton btnssmMoveFiles = new JButton("Move Files");
+		btnssmMoveFiles.setBounds(209, 277, 89, 23);
+		fileFolderMovementPanel.add(btnssmMoveFiles);
 
 		JCheckBox chckbxssmNlp = new JCheckBox("");
 		chckbxssmNlp.setBounds(129, 187, 109, 23);
@@ -259,6 +262,20 @@ public class CanvasInsights {
 		JLabel lblssmGlobalMsgLabel = new JLabel("");
 		lblssmGlobalMsgLabel.setBounds(152, 116, 397, 14);
 		fileFolderMovementPanel.add(lblssmGlobalMsgLabel);
+
+		JButton btnssmExtractFiles = new JButton("Extract");
+
+		btnssmExtractFiles.setBounds(322, 277, 89, 23);
+		fileFolderMovementPanel.add(btnssmExtractFiles);
+
+		JButton btnssmNext = new JButton("Next");
+		btnssmNext.setBounds(433, 277, 89, 23);
+		fileFolderMovementPanel.add(btnssmNext);
+
+		JButton btnssmBack = new JButton("Back");
+
+		btnssmBack.setBounds(100, 277, 89, 23);
+		fileFolderMovementPanel.add(btnssmBack);
 
 		// Action
 
@@ -346,7 +363,13 @@ public class CanvasInsights {
 			}
 		});
 
-		btnssmProceed.addActionListener(new ActionListener() {
+		btnssmBack.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				br.switchPanel(layeredPane, srcDestPanel);
+			}
+		});
+
+		btnssmMoveFiles.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				System.out.println(rdbtnssmTomcat.isSelected());
 				System.out.println(rdbtnssmNlp.isSelected());
@@ -372,34 +395,32 @@ public class CanvasInsights {
 					tocatMoveableFiles.add(chckbxssmGlassbox.getText());
 					tocatMoveableFiles.add(chckbxssmMetise.getText());
 					tocatMoveableFiles.add(chckbxssmrootzip.getText());
-					
-					
-					//destinationLocation = environment.getProperty("root_folder_location") + File.separator+ environment.getProperty("tomcat_folder_name") + File.separator + "webapps";
-					
-					
-					
-					
 
 					for (String warFileName : tocatMoveableFiles) {
-						String sourceLocation = lblssmSrclocationMsgLabel.getText() + File.separator + warFileName;
-						String destinationLocation = lblssmTomcatLocationMsgLabel.getText() + File.separator + "webapps"+ File.separator + warFileName;
-						String warFileLocation = lblssmTomcatLocationMsgLabel.getText() + File.separator + "webapps";
-						try {
-							br.copyFileUsingChannel(new File(sourceLocation), new File(destinationLocation),warFileName);
-							
-							if (warFileName.endsWith(".zip")) {								
-								br.unzip(destinationLocation);
-							} else {
-								warFileLocation = warFileLocation + File.separator+ warFileName.substring(0, (warFileName.length()) - 4).trim();
-								br.extractFiles(warFileName, warFileLocation);
-							}
-							
-							
-							
-						} catch (IOException io) {
-							System.out.println("Unabale to Move File or Folder to destination" + io.getMessage());
-						}
+						String destinationLocation = lblssmTomcatLocationMsgLabel.getText() + File.separator+ "webapps";
 
+						if (warFileName.endsWith(".war")) {
+							destinationLocation += File.separator+ warFileName.substring(0, (warFileName.length() - 4)).trim();
+							File warFolderCreation = new File(destinationLocation);
+							if (warFolderCreation.exists())
+								try {
+									FileUtils.deleteDirectory(warFolderCreation);
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								}
+							warFolderCreation.mkdir();
+
+						}
+						destinationLocation += File.separator + warFileName;
+
+						String sourceLocation = lblssmSrclocationMsgLabel.getText() + File.separator + warFileName;
+
+						try {
+							br.copyFileUsingApacheCommonsIO(new File(sourceLocation), new File(destinationLocation),
+									warFileName);
+						} catch (IOException ie) {
+							System.out.println("Unabale to Move File or Folder to destination" + ie.getMessage());
+						}
 					}
 
 				} else if (rdbtnssmNlp.isSelected()) {
@@ -414,6 +435,14 @@ public class CanvasInsights {
 					lblssmTomcatLocation.setVisible(false);
 					lblssmGlobalPyLocation.setVisible(false);
 					lblssmNlpLocation.setVisible(true);
+					
+					System.out.println("Socurce Location " + lblssmSrclocationMsgLabel.getText());
+					System.out.println(br.listFilesInFolder(lblssmSrclocationMsgLabel.getText()));
+					System.out.println("Destination Location " + lblssmTomcatLocationMsgLabel.getText());
+					
+					br.moveNlp(lblssmSrclocationMsgLabel.getText(), lblssmNlpMsgLabel.getText(), chckbxssmNlp.getText());
+					
+					
 
 				} else if (rdbtnssmGlobalpy.isSelected()) {
 					// Enable / disable check Box
@@ -432,8 +461,46 @@ public class CanvasInsights {
 
 			}
 		});
+		btnssmExtractFiles.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (rdbtnssmTomcat.isSelected()) {
+					System.out.println("--Checking war existance in Tomcat--");
+					String destinationLocation = "";
+					List<String> listFiles = new ArrayList<String>();
+					listFiles.add(chckbxssmGlassbox.getText());
+					listFiles.add(chckbxssmMetise.getText());
+					listFiles.add(chckbxssmrootzip.getText());
+
+					String commonLocation = lblssmTomcatLocationMsgLabel.getText() + File.separator;
+					String catlinaLocation = commonLocation + File.separator + "work" + File.separator + "Catalina";
+					br.deleteTomcatCatlina(catlinaLocation);
+					try {
+						for (String warFileName : listFiles) {
+							if (warFileName.endsWith(".zip")) {
+								destinationLocation = commonLocation + "webapps" + File.separator + warFileName;
+								br.unzip(destinationLocation);
+								br.deleteWarZipFiles(destinationLocation);
+							} else {
+								destinationLocation = commonLocation + "webapps" + File.separator
+										+ warFileName.substring(0, (warFileName.length()) - 4).trim();
+								br.extractWarFiles(warFileName, destinationLocation);
+							}
+						}
+					} catch (Exception e2) {
+
+					}
+				} else if (rdbtnssmNlp.isSelected()) {									
+					br.unZipNlp(lblssmNlpMsgLabel.getText(), chckbxssmNlp.getText());
+				}else if (rdbtnssmGlobalpy.isSelected()) {
+					
+				}
+				
+
+			}
+		});
 
 		rdbtnssmTomcat.addActionListener(new ActionListener() {
+
 			public void actionPerformed(ActionEvent e) {
 				// Disable Label
 				lblssmTomcatLocation.setVisible(true);
