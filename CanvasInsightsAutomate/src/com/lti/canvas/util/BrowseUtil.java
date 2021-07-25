@@ -240,7 +240,7 @@ public class BrowseUtil {
 				if (entry.isDirectory()) {
 					continue;
 				} else {
-					System.out.print("#");
+					System.out.print(".");
 					BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
 					int b;
 					byte buffer[] = new byte[1024];
